@@ -1,16 +1,17 @@
+import java.io.IOException;
+import java.util.ArrayList;
+
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
 
         Neuron neuron = new Neuron();
 
-        neuron.train(1000, 0.5);
+        ArrayList<Data> training_data = DataReader.read("training_data.csv");
+        ArrayList<Data> test_data = DataReader.read("test_data.csv");
 
-        neuron.printInfo();
+        neuron.train(1000, training_data);
 
-        System.out.println();
-        System.out.println("Test 0: " + neuron.inference(0));
-        System.out.println("Test 1: " + neuron.inference(1));
-        System.out.println("Test 2: " + neuron.inference(2));
-        System.out.println("Test 5: " + neuron.inference(5));
+        double loss = neuron.evaluate(test_data);
+        System.out.println(loss);
     }
 }
