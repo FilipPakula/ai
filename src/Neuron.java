@@ -1,30 +1,44 @@
 import java.util.ArrayList;
 
 public class Neuron {
-    double weight, bias, rate, loss, prediction;
+    double bias, rate, loss, prediction;
+    double[] weight;
 
-    public Neuron() {
-        this.weight = 0.5;
+    public Neuron(double[] weights, double rate) {
         this.bias = 0.0;
-        this.rate = 0.1;
+        this.rate = rate;
         this.loss = 0.0;
+
+        this.weight = weights.clone();
     }
 
     public static double sigmoid(double x) {
         return 1.0 / (1.0 + Math.exp(-x));
     }
 
-    public void epoch(double in, double target)
+    public void epoch(double[] in, double target)
     {
-        double prediction = inference(in);
+        if (in.length != weight.length) {
+            throw new IllegalArgumentException("Expected " + weight.length
+                    + " inputs but got " + in.length);
+        }
 
-        this.loss += (prediction - target) * (prediction - target);
-        double gradient = 2 * (prediction - target) * prediction * (1 - prediction) * in;
+        double prediction = 0;
+        double[] gradient = new double[in.length];
+
+        for (int i = 0; i < in.length; i++) {
+            prediction += in[i] * this.weight[i];
+        }
+
+        prediction = sigmoid(prediction + this.bias);
+
+        for (int i = 0; i < in.length; i++) {
+            gradient[i] = 2 * (prediction - target) * prediction * (1 - prediction) * in[i];
+            this.weight[i] -= this.rate * gradient[i];
+        }
+
         double bias_gradient = 2 * (prediction - target) * prediction * (1 - prediction);
-
-        this.weight -= this.rate * gradient;
         this.bias -= this.rate * bias_gradient;
-        this.prediction = prediction;
     }
 
     public void train(int x, ArrayList<Data> data){
@@ -33,20 +47,20 @@ public class Neuron {
                 this.epoch(datum.input, datum.target);
             }
         }
-        this.loss /= x * data.size();
     }
 
-    public void printInfo()
+    public double inference(double[] in)
     {
-        System.out.println("weight: " + this.weight);
-        System.out.println("bias: " + this.bias);
-        System.out.println("loss: " + this.loss);
-        System.out.println("prediction: " + this.prediction);
-    }
+        if (in.length != weight.length) {
+            throw new IllegalArgumentException("Expected " + weight.length
+                    + " inputs but got " + in.length);
+        }
 
-    public double inference(double in)
-    {
-        return sigmoid(in * this.weight + this.bias);
+        double y = 0;
+        for (int i = 0; i < in.length; i++) {
+            y += in[i] * this.weight[i];
+        }
+        return sigmoid(y + this.bias);
     }
 
     public double evaluate(ArrayList<Data> data)
