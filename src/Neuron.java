@@ -16,8 +16,7 @@ public class Neuron {
 
     public void epoch(double in, double target)
     {
-        double z = in * this.weight + this.bias;
-        double prediction = sigmoid(z);
+        double prediction = inference(in);
 
         this.loss += (prediction - target) * (prediction - target);
         double gradient = 2 * (prediction - target) * prediction * (1 - prediction) * in;
