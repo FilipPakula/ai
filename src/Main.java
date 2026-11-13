@@ -1,30 +1,19 @@
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Scanner;
+import java.util.Locale;
 
 public class Main {
-    static void main() throws IOException {
+    public static void main(String[] args) throws IOException {
+        ArrayList<Data> trainingData = DataReader.read("training_data.csv");
+        Neuron neuron = new Neuron(3, 0.1, 1.0);
 
-        double[] w = DataReader.readWeights("weights.csv");
+        neuron.train(100000, trainingData);
 
-        Neuron neuron = new Neuron(w, 0.1);
+        double[] example = {2.5, 7.0, 4.0};
+        //double[] example = {0.6, 70.0, 10.0};
 
-        ArrayList<Data> training_data = DataReader.read("training_data.csv");
-
-        neuron.train(1000, training_data);
-
-        Scanner scanner = new Scanner(System.in);
-        double[] in = new double[3];
-
-        System.out.print("Speed (km/h): "); in[0] = scanner.nextDouble();
-        System.out.print("Lifting (kg): "); in[1] = scanner.nextDouble();
-        System.out.print("Range (km): "); in[2] = scanner.nextDouble();
-
-        Data test_data = new Data(in, 0.0);
-
-        System.out.println();
-        double fighterProbability = neuron.inference(test_data.input);
-        String aircraftType = fighterProbability >= 0.5 ? "fighter" : "cargo";
-        System.out.println("Prediction: " + aircraftType);
+        System.out.printf(Locale.ROOT, "Prediction: %.12f%n", neuron.inference(example));
+        System.out.printf(Locale.ROOT, "Mean squared error on training data: %.12f%n",
+                neuron.evaluate(trainingData));
     }
 }
