@@ -3,155 +3,131 @@ import java.util.Collections;
 import java.util.Random;
 
 public class Neuron {
-    double bias;
-    double rate;
-    double[] weight;
-    private double[] mean;
-    private double[] standardDeviation;
+    private final double[] weights;
+    private final double learningRate;
+    private double bias;
+    private double[] means;
+    private double[] standardDeviations;
     private boolean trained;
 
-    public Neuron(double[] initialWeights, double rate) {
-        if (initialWeights.length == 0) {
-            throw new IllegalArgumentException("At least one weight is required");
-        }
-        if (rate <= 0) {
-            throw new IllegalArgumentException("Learning rate must be positive");
-        }
+    public Neuron(double[] initialWeights, double learningRate) {
+        this.weights = initialWeights.clone();
+        this.learningRate = learningRate;
 
-        this.rate = rate;
-        this.weight = initialWeights.clone();
-
-        // Keep the relative values from weights.csv, but start out of sigmoid saturation.
-        double maxAbsWeight = 0.0;
-        for (double value : weight) {
-            maxAbsWeight = Math.max(maxAbsWeight, Math.abs(value));
+        // Scale starting weights down so the sigmoid does not start saturated.
+        double largestWeight = 0;
+        for (double weight : weights) {
+            largestWeight = Math.max(largestWeight, Math.abs(weight));
         }
-        if (maxAbsWeight > 0.0) {
-            for (int i = 0; i < weight.length; i++) {
-                weight[i] = 0.1 * weight[i] / maxAbsWeight;
+        if (largestWeight > 0) {
+            for (int i = 0; i < weights.length; i++) {
+                weights[i] = 0.1 * weights[i] / largestWeight;
             }
         }
     }
 
-    public static double sigmoid(double x) {
-        if (x >= 0) {
-            return 1.0 / (1.0 + Math.exp(-x));
+    public void train(int epochs, ArrayList<Data> trainingData) {
+        for (Data row : trainingData) {
+            checkInputSize(row.input);
+            checkTarget(row.target);
         }
-        double exp = Math.exp(x);
-        return exp / (1.0 + exp);
-    }
-
-    public void train(int epochs, ArrayList<Data> data) {
-        if (epochs <= 0) {
-            throw new IllegalArgumentException("Epoch count must be positive");
-        }
-        if (data.isEmpty()) {
-            throw new IllegalArgumentException("Training data must not be empty");
-        }
-
-        for (Data datum : data) {
-            validateTarget(datum.target);
-        }
-        fitNormalizer(data);
+        calculateNormalization(trainingData);
         trained = true;
-        ArrayList<Data> shuffledData = new ArrayList<>(data);
+
+        // Shuffle each epoch so examples from one class are not always seen together.
+        ArrayList<Data> rows = new ArrayList<>(trainingData);
         Random random = new Random(42);
-
         for (int epoch = 0; epoch < epochs; epoch++) {
-            Collections.shuffle(shuffledData, random);
-            for (Data datum : shuffledData) {
-                double[] normalized = normalize(datum.input);
-                double prediction = predictNormalized(normalized);
+            Collections.shuffle(rows, random);
+            for (Data row : rows) {
+                double[] input = normalize(row.input);
+                double prediction = predictNormalized(input);
+                double error = prediction - row.target;
 
-                // Binary cross-entropy with sigmoid has dL/dz = prediction - target.
-                double error = prediction - datum.target;
-                for (int i = 0; i < weight.length; i++) {
-                    weight[i] -= rate * error * normalized[i];
+                // For sigmoid with binary cross-entropy, the gradient is prediction - target.
+                for (int i = 0; i < weights.length; i++) {
+                    weights[i] -= learningRate * error * input[i];
                 }
-                bias -= rate * error;
+                bias -= learningRate * error;
             }
         }
     }
 
     public double inference(double[] input) {
-        ensureTrained();
+        if (!trained) {
+            throw new IllegalStateException("Train the model before inference");
+        }
+        checkInputSize(input);
         return predictNormalized(normalize(input));
     }
 
     public double evaluate(ArrayList<Data> data) {
         if (data.isEmpty()) {
-            return 0.0;
+            return 0;
         }
-        double totalLoss = 0.0;
-        for (Data datum : data) {
-            validateTarget(datum.target);
-            double prediction = inference(datum.input);
-            totalLoss += (prediction - datum.target) * (prediction - datum.target);
+
+        double squaredError = 0;
+        for (Data row : data) {
+            checkTarget(row.target);
+            double difference = inference(row.input) - row.target;
+            squaredError = difference * difference;
         }
-        return totalLoss / data.size();
+        return squaredError / data.size();
     }
 
-    private void fitNormalizer(ArrayList<Data> data) {
-        mean = new double[weight.length];
-        standardDeviation = new double[weight.length];
+    private void calculateNormalization(ArrayList<Data> data) {
+        means = new double[weights.length];
+        standardDeviations = new double[weights.length];
 
-        for (Data datum : data) {
-            checkInputSize(datum.input);
-            for (int i = 0; i < weight.length; i++) {
-                mean[i] += datum.input[i];
+        for (Data row : data) {
+            for (int i = 0; i < weights.length; i++) {
+                means[i] += row.input[i];
             }
         }
-        for (int i = 0; i < weight.length; i++) {
-            mean[i] /= data.size();
+        for (int i = 0; i < weights.length; i++) {
+            means[i] /= data.size();
         }
-        for (Data datum : data) {
-            for (int i = 0; i < weight.length; i++) {
-                double difference = datum.input[i] - mean[i];
-                standardDeviation[i] += difference * difference;
+
+        for (Data row : data) {
+            for (int i = 0; i < weights.length; i++) {
+                double difference = row.input[i] - means[i];
+                standardDeviations[i] += difference * difference;
             }
         }
-        for (int i = 0; i < weight.length; i++) {
-            standardDeviation[i] = Math.sqrt(standardDeviation[i] / data.size());
-            if (standardDeviation[i] < 1e-12) {
-                standardDeviation[i] = 1.0;
+        for (int i = 0; i < weights.length; i++) {
+            standardDeviations[i] = Math.sqrt(standardDeviations[i] / data.size());
+            if (standardDeviations[i] < 1e-12) {
+                standardDeviations[i] = 1;
             }
         }
     }
 
     private double[] normalize(double[] input) {
-        ensureTrained();
-        checkInputSize(input);
         double[] normalized = new double[input.length];
         for (int i = 0; i < input.length; i++) {
-            normalized[i] = (input[i] - mean[i]) / standardDeviation[i];
+            normalized[i] = (input[i] - means[i]) / standardDeviations[i];
         }
         return normalized;
     }
 
-    private double predictNormalized(double[] normalizedInput) {
-        double z = bias;
-        for (int i = 0; i < weight.length; i++) {
-            z += normalizedInput[i] * weight[i];
+    private double predictNormalized(double[] input) {
+        double sum = bias;
+        for (int i = 0; i < weights.length; i++) {
+            sum += input[i] * weights[i];
         }
-        return sigmoid(z);
+        return 1.0 / (1.0 + Math.exp(-sum));
     }
 
     private void checkInputSize(double[] input) {
-        if (input.length != weight.length) {
-            throw new IllegalArgumentException("Expected " + weight.length
+        if (input.length != weights.length) {
+            throw new IllegalArgumentException("Expected " + weights.length
                     + " input features but got " + input.length);
         }
     }
 
-    private void validateTarget(double target) {
-        if (target != 0.0 && target != 1.0) {
+    private void checkTarget(double target) {
+        if (target != 0 && target != 1) {
             throw new IllegalArgumentException("Target must be 0 (cargo) or 1 (fighter), got " + target);
-        }
-    }
-
-    private void ensureTrained() {
-        if (!trained) {
-            throw new IllegalStateException("Train the model before inference");
         }
     }
 }
