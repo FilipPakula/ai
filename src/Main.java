@@ -5,7 +5,7 @@ import java.util.Locale;
 public class Main {
     public static void main(String[] args) throws IOException {
         ArrayList<Data> trainingData = DataReader.read("training_data.csv");
-        Neuron neuron = new Neuron(3, 0.1, 1.0);
+        Neuron neuron = new Neuron(3, 0.1, 1.0, Func.SIGMOID);
 
         neuron.train(100000, trainingData);
 
@@ -13,7 +13,6 @@ public class Main {
         //double[] example = {0.6, 70.0, 10.0};
 
         System.out.printf(Locale.ROOT, "Prediction: %.12f%n", neuron.inference(example));
-        System.out.printf(Locale.ROOT, "Mean squared error on training data: %.12f%n",
-                neuron.evaluate(trainingData));
+        System.out.printf(Locale.ROOT, "Mean squared error on training data: %.12f%n", neuron.evaluate(trainingData));
     }
 }

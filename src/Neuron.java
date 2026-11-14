@@ -1,4 +1,7 @@
 import java.util.ArrayList;
+import java.util.Objects;
+
+import static java.lang.Math.tanh;
 
 public class Neuron {
     double bias, rate;
@@ -6,14 +9,13 @@ public class Neuron {
     double[] weight;
     private double[] means;
     private double[] standardDeviations;
+    Func func;
 
-    public Neuron(int inputs, double weights, double rate) {
-        if (inputs <= 0) throw new IllegalArgumentException("Number of inputs must be positive");
-        if (rate <= 0) throw new IllegalArgumentException("Learning rate must be positive");
+    public Neuron(int inputs, double weights, double rate, Func f) {
         this.bias = 0.0;
         this.rate = rate;
         this.inputs = inputs;
-
+        this.func = f;
         this.weight = new double[inputs];
 
         for(int i = 0; i < inputs; i++)
@@ -26,24 +28,26 @@ public class Neuron {
         return 1.0 / (1.0 + Math.exp(-x));
     }
 
+    public static double relu(double x){
+        return x > 0 ? x : 0;
+    }
+
     public void epoch(Data data)
     {
-        if (means == null) throw new IllegalStateException("Train the neuron before updating it");
-        checkInput(data.input);
-        checkTarget(data.target);
         double[] normalized = normalize(data.input);
-        double prediction = predictNormalized(normalized);
+        double z = weightedSum(normalized);
+        double prediction = activate(z);
+
+        double gradient = 2.0 * (prediction - data.target) * activationDerivative(z, prediction);
 
         for (int i = 0; i < inputs; i++) {
-            this.weight[i] -= this.rate * (prediction - data.target) * normalized[i];
+            this.weight[i] -= this.rate * gradient * normalized[i];
         }
 
-        this.bias -= this.rate * (prediction - data.target);
+        this.bias -= this.rate * gradient;
     }
 
     public void train(int x, ArrayList<Data> data){
-        if (x <= 0) throw new IllegalArgumentException("Epoch count must be positive");
-        if (data.isEmpty()) throw new IllegalArgumentException("Training data must not be empty");
         calculateNormalization(data);
         for(int i = 0; i < x; i++) {
             for (Data datum : data) {
@@ -53,27 +57,41 @@ public class Neuron {
     }
 
     public double inference(double[] in) {
-        checkInput(in);
-        if (means == null) throw new IllegalStateException("Train the neuron before inference");
-        return predictNormalized(normalize(in));
+        in = normalize(in);
+        return activate(weightedSum(in));
     }
 
-    private double predictNormalized(double[] in) {
+    private double weightedSum(double[] in) {
         double y = 0;
         for (int i = 0; i < inputs; i++) {
             y += in[i] * this.weight[i];
         }
-        y += this.bias;
+        return y + this.bias;
+    }
 
-        return sigmoid(y);
+    private double activate(double x) {
+        switch(this.func)
+        {
+            case SIGMOID: return sigmoid(x);
+            case TANH: return tanh(x);
+            case RELU: return relu(x);
+            default: throw new IllegalStateException("Unsupported activation: " + func);
+        }
+    }
+
+    private double activationDerivative(double x, double activated) {
+        switch (func) {
+            case SIGMOID: return activated * (1.0 - activated);
+            case TANH: return 1.0 - activated * activated;
+            case RELU: return x > 0.0 ? 1.0 : 0.0;
+            default: throw new IllegalStateException("Unsupported activation: " + func);
+        }
     }
 
     private void calculateNormalization(ArrayList<Data> data) {
         means = new double[inputs];
         standardDeviations = new double[inputs];
         for (Data datum : data) {
-            checkInput(datum.input);
-            checkTarget(datum.target);
             for (int i = 0; i < inputs; i++) means[i] += datum.input[i];
         }
         for (int i = 0; i < inputs; i++) means[i] /= data.size();
@@ -95,18 +113,6 @@ public class Neuron {
             normalized[i] = (in[i] - means[i]) / standardDeviations[i];
         }
         return normalized;
-    }
-
-    private void checkInput(double[] in) {
-        if (in.length != inputs) {
-            throw new IllegalArgumentException("Expected " + inputs + " inputs but got " + in.length);
-        }
-    }
-
-    private void checkTarget(double target) {
-        if (target != 0.0 && target != 1.0) {
-            throw new IllegalArgumentException("Target must be 0 or 1");
-        }
     }
 
     public double evaluate(ArrayList<Data> data)
