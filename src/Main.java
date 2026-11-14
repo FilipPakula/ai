@@ -4,15 +4,10 @@ import java.util.Locale;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        ArrayList<Data> trainingData = DataReader.read("training_data.csv");
-        Neuron neuron = new Neuron(3, 0.1, 1.0, Func.SIGMOID);
-
-        neuron.train(100000, trainingData);
-
-        double[] example = {2.5, 7.0, 4.0};
-        //double[] example = {0.6, 70.0, 10.0};
-
-        System.out.printf(Locale.ROOT, "Prediction: %.12f%n", neuron.inference(example));
-        System.out.printf(Locale.ROOT, "Mean squared error on training data: %.12f%n", neuron.evaluate(trainingData));
+        double[] in = {2.0, 0.5, 1.0};
+        Network network = new Network(3, 2,1, 3);
+        double[] out = network.use(in);
+        for(double d : out)
+            System.out.println(d);
     }
 }
