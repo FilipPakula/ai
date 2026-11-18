@@ -1,11 +1,11 @@
 public class Layer {
-    private final Neuron[] neurons;
+    final Neuron[] neurons;
 
     public Layer(int neuronCount, int inputCount, Func func) {
         neurons = new Neuron[neuronCount];
 
         for (int i = 0; i < neuronCount; i++) {
-            neurons[i] = new Neuron(inputCount, 0.1, 0.1, func);
+            neurons[i] = new Neuron(inputCount, 0.1, func);
         }
     }
 
