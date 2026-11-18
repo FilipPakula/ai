@@ -5,7 +5,7 @@ public class Network {
     double[] means;
     double[] standardDeviations;
 
-    public Network(int inputs, int hiddenCount, int outputs, int inHidden)
+    public Network(int inputs, int hiddenCount, int inHidden)
     {
         layers = new Layer[hiddenCount + 1];
 
@@ -15,22 +15,75 @@ public class Network {
             layers[i] = new Layer(inHidden, inHidden, Func.RELU);
         }
 
-        layers[hiddenCount] = new Layer(outputs, inHidden, Func.SIGMOID);
+        layers[hiddenCount] = new Layer(1, inHidden, Func.SIGMOID);
     }
 
-    double[] use(double[] in)
+    double use(double[] in)
     {
-        double[] outputs = normalize(in);
+        double[] output = normalize(in);
         for(Layer layer : layers)
         {
-            outputs = layer.use(outputs);
+            output = layer.use(output);
         }
-        return outputs;
+        return output[0];
     }
 
     void train(ArrayList<Data> data)
     {
+        for(Data row : data) {
+// Forward pass: zapamiętaj aktywacje każdej warstwy.
 
+            double[][] activations = new double[layers.length + 1][];
+            activations[0] = normalize(row.input);
+
+            for (int l = 0; l < layers.length; l++) {
+                activations[l + 1] = layers[l].use(activations[l]);
+            }
+// Backpropagation: policz delty, zanim zmienisz jakiekolwiek wagi.
+
+            double[][] deltas = new double[layers.length][];
+
+            int last = layers.length - 1;
+            deltas[last] = new double[layers[last].neurons.length];
+
+            Neuron outputNeuron = layers[last].neurons[0];
+            double prediction = activations[last + 1][0];
+
+            deltas[last][0] =
+                    2.0 * (prediction - row.target)
+                            * outputNeuron.activationDerivativeFromLast();
+
+            for (int l = last - 1; l >= 0; l--) {
+                deltas[l] = new double[layers[l].neurons.length];
+
+                for (int j = 0; j < layers[l].neurons.length; j++) {
+                    double errorFromNextLayer = 0.0;
+
+                    for (int k = 0; k < layers[l + 1].neurons.length; k++) {
+                        errorFromNextLayer +=
+                                deltas[l + 1][k] * layers[l + 1].neurons[k].weight[j];
+                    }
+
+                    Neuron neuron = layers[l].neurons[j];
+                    deltas[l][j] =
+                            errorFromNextLayer * neuron.activationDerivativeFromLast();
+                }
+            }
+
+// Aktualizacja parametrów po obliczeniu delt całej sieci.
+
+            for (int l = 0; l < layers.length; l++) {
+                for (int j = 0; j < layers[l].neurons.length; j++) {
+                    Neuron neuron = layers[l].neurons[j];
+
+                    for (int i = 0; i < neuron.weight.length; i++) {
+                        neuron.weight[i] -= neuron.rate * deltas[l][j] * activations[l][i];
+                    }
+
+                    neuron.bias -= neuron.rate * deltas[l][j];
+                }
+            }
+        }
     }
 
     void training(int x, ArrayList<Data> data)
@@ -48,7 +101,7 @@ public class Network {
             throw new IllegalArgumentException("Dane treningowe nie mogą być puste");
         }
 
-        int featureCount = data.get(0).input.length;
+        int featureCount = data.getFirst().input.length;
         means = new double[featureCount];
         standardDeviations = new double[featureCount];
 

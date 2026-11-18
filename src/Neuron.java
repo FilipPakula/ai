@@ -1,9 +1,8 @@
-import java.util.ArrayList;
 import java.util.Random;
 import static java.lang.Math.tanh;
 
 public class Neuron {
-    double bias, rate;
+    double bias, rate, lastZ;
     int inputs;
     double[] weight;
     Func func;
@@ -27,22 +26,9 @@ public class Neuron {
 
     public static double relu(double x){return x > 0 ? x : 0;}
 
-    public void epoch(Data data)
-    {
-        double z = weightedSum(data.input);
-        double prediction = activate(z);
-
-        double gradient = 2.0 * (prediction - data.target) * activationDerivative(z, prediction);
-
-        for (int i = 0; i < inputs; i++) {
-            this.weight[i] -= this.rate * gradient * data.input[i];
-        }
-
-        this.bias -= this.rate * gradient;
-    }
-
     public double inference(double[] in) {
-        return activate(weightedSum(in));
+        lastZ = weightedSum(in);
+        return activate(lastZ);
     }
 
     private double weightedSum(double[] in) {
@@ -61,7 +47,7 @@ public class Neuron {
         };
     }
 
-    private double activationDerivative(double x, double activated) {
+    double activationDerivative(double x, double activated) {
         return switch (func) {
             case SIGMOID -> activated * (1.0 - activated);
             case TANH -> 1.0 - activated * activated;
@@ -69,17 +55,8 @@ public class Neuron {
         };
     }
 
-
-    public double evaluate(ArrayList<Data> data)
-    {
-        double loss = 0;
-        for(Data datum : data)
-        {
-            double difference = inference(datum.input) - datum.target;
-            loss += difference * difference;
-        }
-
-        if(!data.isEmpty())return loss / data.size();
-        else return 0;
+    double activationDerivativeFromLast() {
+        double output = activate(lastZ);
+        return activationDerivative(lastZ, output);
     }
 }
