@@ -4,7 +4,14 @@ import java.util.ArrayList;
 public class Main {
     static void main() throws IOException {
 
-        Network network = new Network(3, 2, 3);
+        NetworkData netData = new NetworkData();
+        netData.setHiddenCount(2);
+        netData.setInHidden(3);
+        netData.setInputs(3);
+        netData.setOutputType(Func.SIGMOID);
+        netData.setOutputs(1);
+
+        Network network = new Network(netData);
 
         ArrayList<Data> data = DataReader.read("training_data.csv");
         network.training(10000, data);

@@ -1,21 +1,23 @@
 import java.util.ArrayList;
 
+import static java.util.Collections.shuffle;
+
 public class Network {
     Layer[] layers;
     double[] means;
     double[] standardDeviations;
 
-    public Network(int inputs, int hiddenCount, int inHidden)
+    public Network(NetworkData n)
     {
-        layers = new Layer[hiddenCount + 1];
+        layers = new Layer[n.hiddenCount + 1];
 
-        layers[0] = new Layer(inHidden, inputs, Func.RELU);
+        layers[0] = new Layer(n.inHidden, n.inputs, Func.RELU);
 
-        for(int i = 1; i < hiddenCount; i++){
-            layers[i] = new Layer(inHidden, inHidden, Func.RELU);
+        for(int i = 1; i < n.hiddenCount; i++){
+            layers[i] = new Layer(n.inHidden, n.inHidden, Func.RELU);
         }
 
-        layers[hiddenCount] = new Layer(1, inHidden, Func.SIGMOID);
+        layers[n.hiddenCount] = new Layer(n.outputs, n.inHidden, n.outputType);
     }
 
     double use(double[] in)
@@ -93,6 +95,7 @@ public class Network {
         for(int i = 0; i < x; i++)
         {
             train(data);
+            shuffle(data);
         }
     }
 
